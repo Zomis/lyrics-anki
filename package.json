@@ -2,7 +2,7 @@
   "name": "react-grid",
   "version": "0.1.0",
   "private": true,
-  "homepage": "http://www.zomis.net/codereview/react-grid/",
+  "homepage": "http://www.zomis.net/codereview/lyrics-anki/",
   "dependencies": {
     "flexbox-react": "^4.4.0",
     "react": "^15.6.1",

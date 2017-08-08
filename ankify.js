@@ -2,26 +2,36 @@ function clean(string) {
   return string.replace(/[\,\.\'\"\;\!\?]/g, "");
 }
 
-function hasValue(element) {
-  return typeof element !== "undefined";
-}
-
 function unwrapArray(element) {
-  return Array.isArray(element) ? element.join(";") : element;
+  return Array.isArray(element) ? element.join("<br>") : element;
 }
 
 function makeCard(params) {
   console.log(params);
-  const question = "";
-  const answer = [
-    params.translationLine,
-    params.lyricsLine,
-    params.partTranslation,
-    params.partLines
-  ]
-    .map(unwrapArray)
-    .find(hasValue);
+  const question = params.question;
+  const answer = unwrapArray(params.answer);
   return question + "," + answer;
+}
+
+function turnIntoParts(lines) {
+  let parts = [];
+  let part = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.length === 0) {
+      if (part.length > 0) {
+        parts.push(part);
+        part = [];
+      }
+    } else {
+      part.push(line);
+    }
+  }
+  if (part.length > 0) {
+    parts.push(part);
+    part = [];
+  }
+  return parts;
 }
 
 function ankify(lyrics, translation) {
@@ -30,75 +40,56 @@ function ankify(lyrics, translation) {
   }
   lyrics = lyrics.split("\n").map(line => line.trim());
   translation = translation.split("\n").map(line => line.trim());
-  if (translation.length > 0 && translation.length != lyrics.length) {
-    throw "Translation must have the same amount of lines as lyrics";
+
+  lyricParts = turnIntoParts(lyrics);
+  translationParts = turnIntoParts(translation);
+  const useTranslation = translationParts.length > 0;
+  if (useTranslation) {
+    if (lyricParts.length != translationParts.length) {
+      throw "Lyric parts " +
+        lyricParts.length +
+        " does not match translation parts " +
+        translationParts.length;
+    }
+    for (let i = 0; i < lyricParts.length; i++) {
+      if (lyricParts[i].length != translationParts[i].length) {
+        throw "Part " + i + " length does not match";
+      }
+    }
   }
+
   let result = [];
+  for (let i = 0; i < lyricParts.length; i++) {
+    // loop through parts
+    const lyricPart = lyricParts[i].map(clean);
+    const translationPart = useTranslation
+      ? translationParts[i].map(clean)
+      : [];
+    console.log("Lyrics: " + lyricPart);
+    console.log("Translation: " + translationPart);
 
-  const useTranslation = translation.length > 0 && translation[0].length > 0;
-
-  let part = 1;
-  let lineInPart = 1;
-  let partLines = [];
-  let partTranslation = [];
-  for (let i = 0; i < lyrics.length; i++) {
-    const lyricsLine = clean(lyrics[i]);
-    const translationLine = clean(translation[i]);
-
-    if (lyrics[i].length === 0) {
-      if (useTranslation && translationLine.length > 0) {
-        throw "Translation line found for line without lyrics on line " +
-          i +
-          ". Translation: " +
-          translationLine;
-      }
-      part++;
-      lineInPart = 1;
-      if (partLines.length > 0) {
-        result.push(makeCard({ part: part, partLines: partLines }));
-        result.push(
-          makeCard({
-            part: part,
-            partLines: partLines,
-            partTranslation: partTranslation
-          })
-        );
-      }
-      partLines = [];
-      partTranslation = [];
-    } else {
-      if (useTranslation && translationLine.length === 0) {
-        throw "No translation line found for line with lyrics on line " + i;
-      }
-      lineInPart++;
-
+    for (let li = 0; li < lyricPart.length; li++) {
+      const lyricsLine = lyricPart[li];
+      const translationLine = translationPart[li];
+      const previousLine = lyricPart[i - 1];
+      const nextLine = lyricPart[i + 1];
       result.push(
         makeCard({
-          part: part,
-          lineInPart: lineInPart,
-          partLines: partLines,
-          lyricsLine: lyricsLine
+          question: "Lyrics for part " + i + " line " + li,
+          answer: lyricsLine
         })
       );
       if (useTranslation) {
         result.push(
           makeCard({
-            part: part,
-            lineInPart: lineInPart,
-            partLines: partLines,
-            partTranslation: partTranslation,
-            lyricsLine: lyricsLine,
-            translationLine: translationLine
+            question: "Translation for '" + lyricsLine + "'",
+            answer: translationLine
           })
         );
       }
-      partLines.push(lyricsLine);
-      if (useTranslation) {
-        partTranslation.push(translationLine);
-      }
     }
+    result.push(makeCard({ question: "Part " + i, answer: lyricPart }));
   }
-
   return result.join("\n");
 }
 
@@ -111,22 +102,22 @@ if (process.argv.length < 3) {
 
 const filename = process.argv[2];
 
-const lyrics = fs.readFileSync(filename, "utf8");
+const lyricsText = fs.readFileSync(filename, "utf8");
 console.log("Using lyrics file: " + filename);
 
-let translation = null;
+let translationText = null;
 
 if (process.argv.length > 3) {
   const filenameTranslation = process.argv[3];
   console.log("Using translation file: " + filenameTranslation);
-  translation = fs.readFileSync(filenameTranslation, "utf8");
+  translationText = fs.readFileSync(filenameTranslation, "utf8");
 }
 
-const result = ankify(lyrics, translation);
+const resultText = ankify(lyricsText, translationText);
 console.log();
 console.log("Result:");
-console.log(result);
-fs.writeFile(filename + ".anki", result, err => {
+console.log(resultText);
+fs.writeFile(filename + ".anki.csv", resultText, err => {
   if (err) {
     throw err;
   }

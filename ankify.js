@@ -6,12 +6,21 @@ if (process.argv.length < 3) {
 }
 
 const filename = process.argv[2];
-if (process.argv.length >= 3) {
-  const filename2 = process.argv[3];
+
+const data = fs.readFileSync(filename, "utf8");
+console.log("Using lyrics file: " + filename);
+
+const translation = null;
+
+if (process.argv.length > 3) {
+  const filenameTranslation = process.argv[3];
+  console.log("Using translation file: " + filenameTranslation);
+  translation = fs.readFileSync(filenameTranslation, "utf8");
 }
 
-fs.readFile(filename, "utf8", function(err, data) {
-  if (err) throw err;
-  console.log("OK: " + filename);
-  console.log(data);
+fs.writeFile(filename + ".anki", "Result", err => {
+  if (err) {
+    throw err;
+  }
+  console.log("Done!");
 });
